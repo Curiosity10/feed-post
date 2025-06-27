@@ -1,4 +1,3 @@
-
 import requests
 import feedparser
 from datetime import datetime, timedelta
@@ -80,26 +79,21 @@ def generate_post(articles, api_key):
     model = genai.GenerativeModel('gemini-2.5-flash')
     # You can change the style and language output here.
     prompt = """
-    You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative, easy-to-read, and include emojis. Do not use complex words. The post should be in Russian. 
-    Do not use ! in the text.
+You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative and easy-to-read. Do not use complex words. The post should be in Russian. 
+Do not use exclamation marks in the text.
 
-    Create a post with a fun, engaging title. Then, for each of the articles provided below, write a 3 sentence description and present them as an ordered list. Each item must include the description and the original link.
+Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
+1. [Article Title](link) (emoji)
+   3-sentence summary.
 
-    Here are the articles:
-
-    """
+Here are the articles:
+"""
 
     for i, article in enumerate(articles):
         title = getattr(article, 'title', 'No Title')
         link = getattr(article, 'link', '#')
         summary = getattr(article, 'summary', 'No summary available.')
-        
-        prompt += f"""
-    {i+1}. **Title:** {title}
-       **Link:** {link}
-       **Content:** {summary}
-
-    """
+        prompt += f"\n{i+1}. [{title}]({link})\n   {summary}\n"
 
     try:
         response = model.generate_content(prompt)

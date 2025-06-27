@@ -80,7 +80,8 @@ def generate_post(articles, api_key):
     model = genai.GenerativeModel('gemini-2.5-flash')
     # You can change the style and language output here.
     prompt = """
-    You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative, easy-to-read, and include emojis. Do not use complex words. The post should be in Russian.
+    You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative, easy-to-read, and include emojis. Do not use complex words. The post should be in Russian. 
+    Do not use ! in the text.
 
     Create a post with a fun, engaging title. Then, for each of the articles provided below, write a 3 sentence description and present them as an ordered list. Each item must include the description and the original link.
 

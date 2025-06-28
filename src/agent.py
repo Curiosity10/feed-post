@@ -35,11 +35,42 @@ def fetch_articles():
 def filter_articles(articles, days=7, top_n=15):
     # You can add the most important for you keywords here.
     keywords = [
-        'javascript', 'software development', 'copilot', 'anthropic', 'gemini', 
-        'cursor', 'vs code', 'google', 'microsoft', 'openai', 'chatgpt',
-        'react', 'nextjs', 'tailwind', 'typescript', 'nodejs', 'express', 'mongodb',
-        'postgresql', 'mysql', 'sqlite', 'redis', 'docker', 'kubernetes', 'aws', 'azure',
-        'vue', 'angular',
+        # Core JavaScript & Web
+        'javascript', 'typescript', 'node.js', 'npm', 'yarn', 'webpack', 'vite',
+        'react', 'next.js', 'vue', 'angular', 'svelte', 'tailwind css',
+        'es6', 'es2020', 'modules', 'web components', 'pwa', 'microfrontend',
+        
+        # AI/ML Focus
+        'ai', 'artificial intelligence', 'machine learning', 'deep learning',
+        'tensorflow.js', 'langchain', 'llama',
+        'openai', 'anthropic', 'gemini', 'chatgpt', 'copilot',
+        'vector database', 'embeddings', 'rag', 'fine-tuning', 'prompt engineering',
+        'ai tool', 'ai agent', 'mcp',
+        
+        # Development Tools
+        'cursor', 'vs code', 'ide', 'windsurf',
+
+        # Testing
+        'jest', 'vitest', 'cypress', 'testing', 'playwright',
+        'unit test', 'integration test', 'e2e test', 'test coverage',
+        'test automation', 'test framework', 'test runner',
+        
+        # Backend & Data
+        'express', 'mongodb', 'postgresql', 'mysql', 'redis',
+        'graphql', 'rest api', 'microservices', 'serverless',
+        
+        # Infrastructure
+        'docker', 'kubernetes', 'aws', 'azure', 'gcp',
+        
+        # Emerging Tech
+        'web3', 'blockchain', 'deno', 'bun'
+
+        # Companies/Products
+        'microsoft', 'amazon', 'google', 'meta', 'apple',
+        'netflix', 'spotify', 'tiktok', 'instagram', 'facebook',
+        'twitter', 'youtube', 'linkedin', 'reddit', 'pinterest',
+        'snapchat', 'twitch', 'discord', 'telegram', 'whatsapp',
+        'slack', 'zoom', 
     ]
     # Filter articles by last 7 days.
     one_week_ago = datetime.now() - timedelta(days=days)
@@ -83,7 +114,7 @@ You are a friendly and enthusiastic tech assistant. Your task is to create a wee
 Do not use exclamation marks in the text.
 
 Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
-1. [Article Title](link) (emoji)
+1. (emoji) [Article Title](link) 
    3-sentence summary.
 
 Here are the articles:

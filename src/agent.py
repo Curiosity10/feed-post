@@ -32,23 +32,27 @@ def fetch_articles():
             
     return all_articles
 
-def filter_articles(articles, days=7, top_n=15):
+def filter_articles(articles, days=14, top_n=15):
     # You can add the most important for you keywords here.
     keywords = [
         # Core JavaScript & Web
         'javascript', 'typescript', 'node.js', 'npm', 'yarn', 'webpack', 'vite',
-        'react', 'next.js', 'vue', 'angular', 'svelte', 'tailwind css',
-        'es6', 'es2020', 'modules', 'web components', 'pwa', 'microfrontend',
+        'react', 'next.js', 'vue', 'angular', 'svelte', 'tailwind', 
+        'web components', 'pwa', 'microfrontend', 'css', 'html',
+        'accessibility', 'a11y', 'seo', 'performance', 'optimization',
+        'web vitals', 'lighthouse', 
         
         # AI/ML Focus
         'ai', 'artificial intelligence', 'machine learning', 'deep learning',
         'tensorflow.js', 'langchain', 'llama',
         'openai', 'anthropic', 'gemini', 'chatgpt', 'copilot',
         'vector database', 'embeddings', 'rag', 'fine-tuning', 'prompt engineering',
-        'ai tool', 'ai agent', 'mcp',
+        'ai tool', 'ai agent', 'mcp', 'llm', 'large language model',
+        'ollama', 'lm studio',
         
         # Development Tools
         'cursor', 'vs code', 'ide', 'windsurf',
+        'visual studio', 
 
         # Testing
         'jest', 'vitest', 'cypress', 'testing', 'playwright',
@@ -60,19 +64,20 @@ def filter_articles(articles, days=7, top_n=15):
         'graphql', 'rest api', 'microservices', 'serverless',
         
         # Infrastructure
-        'docker', 'kubernetes', 'aws', 'azure', 'gcp',
+        'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'terraform',
         
         # Emerging Tech
-        'web3', 'blockchain', 'deno', 'bun'
+        'web3', 'blockchain', 'deno', 'bun',
 
         # Companies/Products
         'microsoft', 'amazon', 'google', 'meta', 'apple',
         'netflix', 'spotify', 'tiktok', 'instagram', 'facebook',
         'twitter', 'youtube', 'linkedin', 'reddit', 'pinterest',
         'snapchat', 'twitch', 'discord', 'telegram', 'whatsapp',
-        'slack', 'zoom', 
+        'slack', 'zoom', 'github', 'gitlab', 'bitbucket',
+        'vercel', 'cloudflare', 'figma',
     ]
-    # Filter articles by last 7 days.
+    # Filter articles by last 14 days.
     one_week_ago = datetime.now() - timedelta(days=days)
     
     # Filter by date
@@ -114,7 +119,7 @@ You are a friendly and enthusiastic tech assistant. Your task is to create a wee
 Do not use exclamation marks in the text.
 
 Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
-1. (emoji) [Article Title](link) 
+1. emoji [Article Title](link) 
    3-sentence summary.
 
 Here are the articles:

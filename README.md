@@ -31,7 +31,7 @@ This project is an AI agent that automates the creation of a tech news digest fo
 ## Usage
 
 1.  **Get a Google Gemini API Key:**
-    You'll need an API key from Google AI Studio.
+    You'll need an API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 2.  **Run the script:**
     Execute the agent from the project's root directory using the following command. Replace `YOUR_API_KEY` with your actual Google Gemini API key.

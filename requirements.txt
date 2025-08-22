@@ -6,3 +6,4 @@ python-dotenv
 certifi
 httpx
 httpcore
+openai

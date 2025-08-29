@@ -1,0 +1,43 @@
+{
+    "rss_sources": [
+        "https://thezvi.substack.com/feed",
+        "https://simonwillison.net/atom/everything/",
+        "https://www.artificial-intelligence.blog/ai-news?format=rss",
+        "https://research.facebook.com/feed/",
+        "https://www.wired.com/feed/tag/ai/latest/rss",
+        "https://magazine.sebastianraschka.com/feed",
+        "https://www.artificialintelligence-news.com/feed/",
+        "https://www.404media.co/rss/",
+        "https://hackernoon.com/tagged/ai/feed",
+        "https://blogs.windows.com/feed/",
+        "https://visualstudiomagazine.com/rss-feeds/news.aspx"
+    ],
+    "keywords": [
+        "javascript", "typescript", "node.js", "npm", "yarn", "webpack", "vite",
+        "react", "next.js", "vue", "angular", "svelte", "tailwind", 
+        "web components", "pwa", "microfrontend", "css", "html",
+        "accessibility", "a11y", "seo", "performance", "optimization",
+        "web vitals", "lighthouse", 
+        "ai", "artificial intelligence", "machine learning", "deep learning",
+        "tensorflow.js", "langchain", "llama",
+        "openai", "anthropic", "gemini", "chatgpt", "copilot",
+        "vector database", "embeddings", "rag", "fine-tuning", "prompt engineering",
+        "ai tool", "ai agent", "mcp", "llm", "large language model",
+        "ollama", "lm studio",
+        "cursor", "vs code", "ide", "windsurf",
+        "visual studio", 
+        "jest", "vitest", "cypress", "testing", "playwright",
+        "unit test", "integration test", "e2e test", "test coverage",
+        "test automation", "test framework", "test runner",
+        "express", "mongodb", "postgresql", "mysql", "redis",
+        "graphql", "rest api", "microservices", "serverless",
+        "docker", "kubernetes", "aws", "azure", "gcp", "terraform",
+        "web3", "blockchain", "deno", "bun",
+        "microsoft", "amazon", "google", "meta", "apple",
+        "netflix", "spotify", "tiktok", "instagram", "facebook",
+        "twitter", "youtube", "linkedin", "reddit", "pinterest",
+        "snapchat", "twitch", "discord", "telegram", "whatsapp",
+        "slack", "zoom", "github", "gitlab", "bitbucket",
+        "vercel", "cloudflare", "figma"
+    ]
+}

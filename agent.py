@@ -2,6 +2,7 @@ import requests
 import feedparser
 from datetime import datetime, timedelta
 import google.generativeai as genai
+from openai import OpenAI
 import os
 import argparse
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ import logging
 import platform
 import sys
 import urllib3
+import json
 
 # Suppress insecure request warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -22,6 +24,21 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Load configuration from config.json
+try:
+    with open('config.json', 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    RSS_SOURCES = config.get('rss_sources', [])
+    KEYWORDS = config.get('keywords', [])
+except FileNotFoundError:
+    logging.error("config.json not found. Please create it with 'rss_sources' and 'keywords'.")
+    RSS_SOURCES = []
+    KEYWORDS = []
+except json.JSONDecodeError:
+    logging.error("Error decoding config.json. Please ensure it is valid JSON.")
+    RSS_SOURCES = []
+    KEYWORDS = []
 
 # Windows-specific SSL handling
 if platform.system() == 'Windows':
@@ -77,20 +94,8 @@ def patch_genai_for_ssl_verification(verify=True):
         logging.warning(f"Error while patching genai for SSL: {e}")
 
 def fetch_articles(verify_ssl=True):
-    # You can add more RSS feeds here.
-    rss_sources = [
-        "https://thezvi.substack.com/feed",
-        "https://simonwillison.net/atom/everything/",
-        "https://www.artificial-intelligence.blog/ai-news?format=rss",
-        "https://research.facebook.com/feed/",
-        "https://www.wired.com/feed/tag/ai/latest/rss",
-        "https://magazine.sebastianraschka.com/feed",
-        "https://www.artificialintelligence-news.com/feed/",
-        "https://www.404media.co/rss/",
-        "https://hackernoon.com/tagged/ai/feed",
-        "https://blogs.windows.com/feed/",
-        "https://visualstudiomagazine.com/rss-feeds/news.aspx"
-    ]
+    # RSS feeds are loaded from config.json.
+    rss_sources = RSS_SOURCES
     
     if not verify_ssl:
         warnings.warn("SSL verification is disabled. This is not secure and should only be used for testing.")
@@ -114,50 +119,8 @@ def fetch_articles(verify_ssl=True):
     return all_articles
 
 def filter_articles(articles, days=14, top_n=15):
-    # You can add the most important for you keywords here.
-    keywords = [
-        # Core JavaScript & Web
-        'javascript', 'typescript', 'node.js', 'npm', 'yarn', 'webpack', 'vite',
-        'react', 'next.js', 'vue', 'angular', 'svelte', 'tailwind', 
-        'web components', 'pwa', 'microfrontend', 'css', 'html',
-        'accessibility', 'a11y', 'seo', 'performance', 'optimization',
-        'web vitals', 'lighthouse', 
-        
-        # AI/ML Focus
-        'ai', 'artificial intelligence', 'machine learning', 'deep learning',
-        'tensorflow.js', 'langchain', 'llama',
-        'openai', 'anthropic', 'gemini', 'chatgpt', 'copilot',
-        'vector database', 'embeddings', 'rag', 'fine-tuning', 'prompt engineering',
-        'ai tool', 'ai agent', 'mcp', 'llm', 'large language model',
-        'ollama', 'lm studio',
-        
-        # Development Tools
-        'cursor', 'vs code', 'ide', 'windsurf',
-        'visual studio', 
-
-        # Testing
-        'jest', 'vitest', 'cypress', 'testing', 'playwright',
-        'unit test', 'integration test', 'e2e test', 'test coverage',
-        'test automation', 'test framework', 'test runner',
-        
-        # Backend & Data
-        'express', 'mongodb', 'postgresql', 'mysql', 'redis',
-        'graphql', 'rest api', 'microservices', 'serverless',
-        
-        # Infrastructure
-        'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'terraform',
-        
-        # Emerging Tech
-        'web3', 'blockchain', 'deno', 'bun',
-
-        # Companies/Products
-        'microsoft', 'amazon', 'google', 'meta', 'apple',
-        'netflix', 'spotify', 'tiktok', 'instagram', 'facebook',
-        'twitter', 'youtube', 'linkedin', 'reddit', 'pinterest',
-        'snapchat', 'twitch', 'discord', 'telegram', 'whatsapp',
-        'slack', 'zoom', 'github', 'gitlab', 'bitbucket',
-        'vercel', 'cloudflare', 'figma',
-    ]
+    # Keywords are loaded from config.json.
+    keywords = KEYWORDS
     # Filter articles by last 14 days.
     one_week_ago = datetime.now() - timedelta(days=days)
     
@@ -190,7 +153,7 @@ def filter_articles(articles, days=14, top_n=15):
     
     return [item['article'] for item in sorted_articles[:top_n]]
 
-def generate_post(articles, api_key, verify_ssl=True, timeout=300, model_name='gemini-2.5-flash', language='Russian'):
+def generate_post_gemini(articles, api_key, verify_ssl=True, timeout=300, model_name='gemini-2.5-flash', language='English'):
     try:
         # Set environment variable to disable SSL verification if needed
         if not verify_ssl:
@@ -266,7 +229,7 @@ Here are the articles:
         logging.error(error_msg)
         return error_msg
 
-def generate_post_fallback(articles, api_key, model_name='gemini-2.5-flash', language='Russian'):
+def generate_post_fallback(articles, api_key, model_name='gemini-2.5-flash', language='English'):
     """Fallback function that uses direct REST API calls with requests when the standard API doesn't work."""
     try:
         print(f"Trying fallback approach with direct API requests to {model_name}...")
@@ -331,6 +294,45 @@ Here are the articles:
         logging.error(error_msg)
         return error_msg
 
+def generate_post_openai(articles, api_key, model_name='gpt-5-mini', language='English', timeout=300):
+    try:
+        client = OpenAI(api_key=api_key)
+
+        prompt = f"""
+You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative and easy-to-read. Do not use complex words. The post should be in {language}. 
+Do not use exclamation marks in the text.
+
+Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
+1. emoji [Article Title](link) 
+   3-sentence summary.
+
+Here are the articles:
+"""
+        for i, article in enumerate(articles):
+            title = getattr(article, 'title', 'No Title')
+            link = getattr(article, 'link', '#')
+            summary = getattr(article, 'summary', 'No summary available.')
+            prompt += f"\n{i+1}. [{title}]({link})\n   {summary}\n"
+
+        print(f"Generating content with {model_name} API...")
+        
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=timeout
+        )
+        
+        print("Content generation successful!")
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        error_msg = f"Error generating content with OpenAI: {e}"
+        logging.error(error_msg)
+        return error_msg
+
 def save_post_as_md(post_content, filename="feed_post.md"):
     try:
         with open(filename, 'w', encoding='utf-8') as f:
@@ -341,15 +343,16 @@ def save_post_as_md(post_content, filename="feed_post.md"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate a tech news digest.')
-    parser.add_argument('--api_key', type=str, help='Your Google Gemini API key (overrides .env file).')
+    parser.add_argument('--provider', type=str, default='gemini', choices=['gemini', 'openai'], help='The provider to use for content generation (default: gemini).')
+    parser.add_argument('--gemini-api-key', type=str, help='Your Google Gemini API key (overrides .env file).')
+    parser.add_argument('--openai-api-key', type=str, help='Your OpenAI API key (overrides .env file).')
     parser.add_argument('--no-verify-ssl', action='store_true', help='Disable SSL certificate verification (not secure, use only when needed).')
     parser.add_argument('--log-file', type=str, help='Path to a log file to record detailed errors and info.')
     parser.add_argument('--timeout', type=int, default=300, help='Timeout in seconds for API calls (default: 300)')
-    parser.add_argument('--model', type=str, default='gemini-2.5-flash', 
-                        help='Gemini model to use (default: gemini-2.5-flash). Options include gemini-2.5-pro, gemini-1.5-pro.')
-    parser.add_argument('--use-fallback', action='store_true', help='Use fallback direct API approach instead of the standard library.')
-    parser.add_argument('--language', type=str, default='Russian', 
-                        help='Language for the generated content (default: Russian). Examples: English, German, French, Spanish, etc.')
+    parser.add_argument('--model', type=str, help='The model to use for the selected provider.')
+    parser.add_argument('--use-fallback', action='store_true', help='Use fallback direct API approach for Gemini instead of the standard library.')
+    parser.add_argument('--language', type=str, default='English',
+                        help='Language for the generated content (default: English). Examples: Russian, German, French, Spanish, etc.')
     args = parser.parse_args()
     
     # Set up file logging if requested
@@ -359,57 +362,57 @@ if __name__ == "__main__":
         logging.getLogger().addHandler(file_handler)
         logging.info("Starting feed-post agent with file logging")
     
-    # Use API key from command line if provided, otherwise use from .env
-    api_key = args.api_key or os.getenv('GEMINI_KEY')
     verify_ssl = not args.no_verify_ssl
+    
+    all_articles = fetch_articles(verify_ssl=verify_ssl)
+    print(f"Fetched {len(all_articles)} articles.")
+    
+    filtered_articles = filter_articles(all_articles)
+    print(f"Filtered down to {len(filtered_articles)} articles.")
+    
+    if not filtered_articles:
+        print("No articles to generate a post for.")
+        sys.exit(0)
 
-    if not api_key:
-        print("Error: No API key found. Please either provide it using --api_key argument or set GEMINI_KEY in .env file.")
-    else:
-        print(f"Starting Feed Post generator...")
-        print(f"SSL verification: {'Disabled' if not verify_ssl else 'Enabled'}")
-        print(f"Using model: {args.model}")
-        print(f"Output language: {args.language}")
-        print(f"API timeout: {args.timeout} seconds")
-        
-        all_articles = fetch_articles(verify_ssl=verify_ssl)
-        print(f"Fetched {len(all_articles)} articles.")
-        
-        filtered_articles = filter_articles(all_articles)
-        print(f"Filtered down to {len(filtered_articles)} articles.")
-        
-        if filtered_articles:
-            if args.use_fallback:
-                # Use the fallback method directly if requested
-                generated_post = generate_post_fallback(
-                    filtered_articles,
-                    api_key,
-                    model_name=args.model,
-                    language=args.language
-                )
-            else:
-                # Try the standard method first
-                generated_post = generate_post(
-                    filtered_articles, 
-                    api_key, 
-                    verify_ssl=verify_ssl, 
-                    timeout=args.timeout,
-                    model_name=args.model,
-                    language=args.language
-                )
-                
-                # If it contains an error, try the fallback method
-                if generated_post.startswith("Error:"):
-                    print("\nStandard API method failed. Trying fallback approach...")
-                    generated_post = generate_post_fallback(
-                        filtered_articles,
-                        api_key,
-                        model_name=args.model,
-                        language=args.language
-                    )
+    generated_post = ""
+    if args.provider == 'gemini':
+        api_key = args.gemini_api_key or os.getenv('GEMINI_KEY')
+        model_name = args.model or 'gemini-2.5-flash'
+        if not api_key:
+            print("Error: No Gemini API key found. Please provide it using --gemini-api-key or set GEMINI_KEY in .env file.")
+            sys.exit(1)
             
-            print("\n--- Generated Post ---")
-            print(generated_post)
-            save_post_as_md(generated_post)
+        print(f"Starting Feed Post generator with Gemini...")
+        print(f"Using model: {model_name}")
+        
+        if args.use_fallback:
+            generated_post = generate_post_fallback(
+                filtered_articles, api_key, model_name=model_name, language=args.language
+            )
         else:
-            print("No articles to generate a post for.")
+            generated_post = generate_post_gemini(
+                filtered_articles, api_key, verify_ssl=verify_ssl, timeout=args.timeout, model_name=model_name, language=args.language
+            )
+            if "Error:" in generated_post:
+                print("\nStandard API method failed. Trying fallback approach...")
+                generated_post = generate_post_fallback(
+                    filtered_articles, api_key, model_name=model_name, language=args.language
+                )
+
+    elif args.provider == 'openai':
+        api_key = args.openai_api_key or os.getenv('OPENAI_KEY')
+        model_name = args.model or 'gpt-5-mini'
+        if not api_key:
+            print("Error: No OpenAI API key found. Please provide it using --openai-api-key or set OPENAI_KEY in .env file.")
+            sys.exit(1)
+            
+        print(f"Starting Feed Post generator with OpenAI...")
+        print(f"Using model: {model_name}")
+        
+        generated_post = generate_post_openai(
+            filtered_articles, api_key, model_name=model_name, language=args.language, timeout=args.timeout
+        )
+
+    print("\n--- Generated Post ---")
+    print(generated_post)
+    save_post_as_md(generated_post)

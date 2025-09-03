@@ -6,7 +6,8 @@ This project is an AI agent that automates the creation of a tech news digest fo
 
 - Fetches articles from a predefined list of RSS sources.
 - Filters articles from the last week based on keywords related to AI, software development, and major tech companies.
-- Selects the top 15 most relevant articles.
+- **NEW: Smart diversification algorithm** that ensures variety of sources while maintaining relevance.
+- Selects the top 15 most relevant articles with balanced source distribution.
 - Uses Google's Gemini or OpenAI's GPT models to generate a formatted post with a title, emojis, and summaries for each article.
 - Saves the final post as a Markdown file (`feed_post.md`).
 
@@ -90,7 +91,11 @@ This project is an AI agent that automates the creation of a tech news digest fo
     python agent.py --no-verify-ssl --use-fallback
     
     # You can combine options as needed
-    python agent.py --provider openai --language Russian --model gpt-4o
+    python agent.py --provider openai --language Russian --model gpt-4o --no-verify-ssl 
+    
+    # Control source diversification (default: top_n // 3 articles per source)
+    python agent.py --max-per-source 1 --no-verify-ssl  # Maximum diversity: only 1 article per source
+    python agent.py --max-per-source 3 --no-verify-ssl  # Allow up to 3 articles per source
     ```
 
 4.  **Find the output:**

@@ -118,10 +118,19 @@ def fetch_articles(verify_ssl=True):
             
     return all_articles
 
-def filter_articles(articles, days=14, top_n=15):
+def filter_articles(articles, days=7, top_n=15, max_per_source=None):
+    """
+    Filter and diversify articles using a two-stage approach:
+    1. Score articles by keyword relevance
+    2. Apply diversification algorithm to ensure variety of sources
+    
+    Diversification rules:
+    - Maximum top_n // 3 articles per source (but at least 1)
+    - Fallback: if not enough articles, add remaining ones
+    """
     # Keywords are loaded from config.json.
     keywords = KEYWORDS
-    # Filter articles by last 14 days.
+    # Filter articles by last 7 days.
     one_week_ago = datetime.now() - timedelta(days=days)
     
     # Filter by date
@@ -138,20 +147,89 @@ def filter_articles(articles, days=14, top_n=15):
     scored_articles = []
     for article in recent_articles:
         score = 0
+        found_keywords = []
         title = article.title.lower() if hasattr(article, 'title') else ''
         summary = article.summary.lower() if hasattr(article, 'summary') else ''
         
         for keyword in keywords:
             if keyword in title or keyword in summary:
                 score += 1
+                found_keywords.append(keyword)
         
         if score > 0:
-            scored_articles.append({'article': article, 'score': score})
+            # Extract source domain for diversification
+            source_domain = ""
+            if hasattr(article, 'link') and article.link:
+                try:
+                    from urllib.parse import urlparse
+                    parsed_url = urlparse(article.link)
+                    source_domain = parsed_url.netloc
+                except:
+                    source_domain = "unknown"
+            else:
+                source_domain = "unknown"
             
-    # Sort and get top N
+            scored_articles.append({
+                'article': article, 
+                'score': score, 
+                'source_domain': source_domain,
+                'found_keywords': found_keywords
+            })
+            
+    # Sort by relevance first
     sorted_articles = sorted(scored_articles, key=lambda x: x['score'], reverse=True)
     
-    return [item['article'] for item in sorted_articles[:top_n]]
+    # Apply diversification algorithm
+    if max_per_source is None:
+        max_per_source = max(1, top_n // 3)  # Default: maximum articles per source (but at least 1)
+    else:
+        max_per_source = max(1, max_per_source)  # Ensure at least 1 article per source
+    diversified_articles = []
+    source_counts = {}
+    
+    # First pass: add articles respecting source limits
+    for item in sorted_articles:
+        source = item['source_domain']
+        if source not in source_counts:
+            source_counts[source] = 0
+        
+        if source_counts[source] < max_per_source:
+            diversified_articles.append(item['article'])
+            source_counts[source] += 1
+            
+            if len(diversified_articles) >= top_n:
+                break
+    
+    # Fallback: if we don't have enough articles, add remaining ones
+    if len(diversified_articles) < top_n:
+        remaining_articles = []
+        for item in sorted_articles:
+            if item['article'] not in diversified_articles:
+                remaining_articles.append(item['article'])
+        
+        # Add remaining articles until we reach top_n
+        for article in remaining_articles:
+            if len(diversified_articles) >= top_n:
+                break
+            diversified_articles.append(article)
+    
+    # Log diversification results
+    logging.info(f"Diversification applied: max {max_per_source} articles per source")
+    logging.info(f"Source distribution: {source_counts}")
+    logging.info(f"Final article count: {len(diversified_articles)}")
+    
+    # Return both articles and statistics for better reporting
+    stats = {
+        'total_articles': len(articles),
+        'recent_articles': len(recent_articles),
+        'scored_articles': len(scored_articles),
+        'final_articles': len(diversified_articles),
+        'source_distribution': source_counts,
+        'max_per_source': max_per_source,
+        'scored_articles_data': scored_articles  # Include the full scored articles data
+    }
+    
+    return diversified_articles, stats
 
 def generate_post_gemini(articles, api_key, verify_ssl=True, timeout=300, model_name='gemini-2.5-flash', language='English'):
     try:
@@ -353,6 +431,8 @@ if __name__ == "__main__":
     parser.add_argument('--use-fallback', action='store_true', help='Use fallback direct API approach for Gemini instead of the standard library.')
     parser.add_argument('--language', type=str, default='English',
                         help='Language for the generated content (default: English). Examples: Russian, German, French, Spanish, etc.')
+    parser.add_argument('--max-per-source', type=int, default=None,
+                        help='Maximum articles per source (default: top_n // 3). Set to 1 for maximum diversity.')
     args = parser.parse_args()
     
     # Set up file logging if requested
@@ -367,8 +447,65 @@ if __name__ == "__main__":
     all_articles = fetch_articles(verify_ssl=verify_ssl)
     print(f"Fetched {len(all_articles)} articles.")
     
-    filtered_articles = filter_articles(all_articles)
+    # Show source distribution before filtering
+    print("\n--- Source Distribution Before Filtering ---")
+    source_counts_before = {}
+    for article in all_articles:
+        if hasattr(article, 'link') and article.link:
+            try:
+                from urllib.parse import urlparse
+                parsed_url = urlparse(article.link)
+                source = parsed_url.netloc
+                source_counts_before[source] = source_counts_before.get(source, 0) + 1
+            except:
+                pass
+    
+    for source, count in sorted(source_counts_before.items(), key=lambda x: x[1], reverse=True):
+        print(f"  {source}: {count} articles")
+    print(f"Total sources: {len(source_counts_before)}")
+    print("--- End Source Distribution ---\n")
+    
+    filtered_articles, filter_stats = filter_articles(all_articles, max_per_source=args.max_per_source)
     print(f"Filtered down to {len(filtered_articles)} articles.")
+    
+    # Show detailed filtering statistics
+    print("\n--- Filtering Statistics ---")
+    print(f"Total articles fetched: {filter_stats['total_articles']}")
+    print(f"Articles within {7} days: {filter_stats['recent_articles']}")
+    print(f"Articles with keywords: {filter_stats['scored_articles']}")
+    print(f"Final articles after diversification: {filter_stats['final_articles']}")
+    print(f"Maximum articles per source: {filter_stats['max_per_source']}")
+    if args.max_per_source:
+        print(f"Custom max-per-source setting: {args.max_per_source}")
+    else:
+        print("Using default max-per-source setting (top_n // 3)")
+    print("--- End Filtering Statistics ---\n")
+    
+    # Show diversification results
+    if filtered_articles:
+        print("\n--- Diversification Results ---")
+        source_counts = filter_stats['source_distribution']
+        
+        print("Articles per source after diversification:")
+        for source, count in sorted(source_counts.items(), key=lambda x: x[1], reverse=True):
+            print(f"  {source}: {count} articles")
+        print(f"Total sources: {len(source_counts)}")
+        print("--- End Diversification Results ---\n")
+        
+        # Show keyword analysis for top articles
+        print("\n--- Keyword Analysis for Top Articles ---")
+        scored_articles_data = filter_stats['scored_articles_data']
+        for i, item in enumerate(scored_articles_data[:10]):  # Show top 10 scored articles
+            if item['article'] in filtered_articles:
+                title = getattr(item['article'], 'title', 'No Title')[:60] + "..." if len(getattr(item['article'], 'title', 'No Title')) > 60 else getattr(item['article'], 'title', 'No Title')
+                source = item['source_domain']
+                score = item['score']
+                keywords = item['found_keywords']
+                print(f"  {i+1}. Score: {score} | Source: {source}")
+                print(f"     Title: {title}")
+                print(f"     Keywords: {', '.join(keywords[:5])}{'...' if len(keywords) > 5 else ''}")
+                print()
+        print("--- End Keyword Analysis ---\n")
     
     if not filtered_articles:
         print("No articles to generate a post for.")

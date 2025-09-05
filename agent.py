@@ -118,7 +118,7 @@ def fetch_articles(verify_ssl=True):
             
     return all_articles
 
-def filter_articles(articles, days=14, top_n=15, max_per_source=None):
+def filter_articles(articles, days=7, top_n=15, max_per_source=None):
     """
     Filter and diversify articles using a two-stage approach:
     1. Score articles by keyword relevance
@@ -130,7 +130,7 @@ def filter_articles(articles, days=14, top_n=15, max_per_source=None):
     """
     # Keywords are loaded from config.json.
     keywords = KEYWORDS
-    # Filter articles by last 14 days.
+    # Filter articles by last 7 days.
     one_week_ago = datetime.now() - timedelta(days=days)
     
     # Filter by date
@@ -471,7 +471,7 @@ if __name__ == "__main__":
     # Show detailed filtering statistics
     print("\n--- Filtering Statistics ---")
     print(f"Total articles fetched: {filter_stats['total_articles']}")
-    print(f"Articles within {14} days: {filter_stats['recent_articles']}")
+    print(f"Articles within {7} days: {filter_stats['recent_articles']}")
     print(f"Articles with keywords: {filter_stats['scored_articles']}")
     print(f"Final articles after diversification: {filter_stats['final_articles']}")
     print(f"Maximum articles per source: {filter_stats['max_per_source']}")

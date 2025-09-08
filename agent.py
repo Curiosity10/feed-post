@@ -433,6 +433,10 @@ if __name__ == "__main__":
                         help='Language for the generated content (default: English). Examples: Russian, German, French, Spanish, etc.')
     parser.add_argument('--max-per-source', type=int, default=None,
                         help='Maximum articles per source (default: top_n // 3). Set to 1 for maximum diversity.')
+    parser.add_argument('--days', type=int, default=7,
+                        help='The number of days to look back for recent articles (default: 7).')
+    parser.add_argument('--top-n', type=int, default=15,
+                        help='The total number of articles to include in the post (default: 15).')
     args = parser.parse_args()
     
     # Set up file logging if requested
@@ -465,13 +469,18 @@ if __name__ == "__main__":
     print(f"Total sources: {len(source_counts_before)}")
     print("--- End Source Distribution ---\n")
     
-    filtered_articles, filter_stats = filter_articles(all_articles, max_per_source=args.max_per_source)
+    filtered_articles, filter_stats = filter_articles(
+        all_articles, 
+        days=args.days, 
+        top_n=args.top_n, 
+        max_per_source=args.max_per_source
+    )
     print(f"Filtered down to {len(filtered_articles)} articles.")
     
     # Show detailed filtering statistics
     print("\n--- Filtering Statistics ---")
     print(f"Total articles fetched: {filter_stats['total_articles']}")
-    print(f"Articles within {7} days: {filter_stats['recent_articles']}")
+    print(f"Articles within {args.days} days: {filter_stats['recent_articles']}")
     print(f"Articles with keywords: {filter_stats['scored_articles']}")
     print(f"Final articles after diversification: {filter_stats['final_articles']}")
     print(f"Maximum articles per source: {filter_stats['max_per_source']}")

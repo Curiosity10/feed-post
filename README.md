@@ -96,6 +96,10 @@ This project is an AI agent that automates the creation of a tech news digest fo
     # Control source diversification (default: top_n // 3 articles per source)
     python agent.py --max-per-source 1 --no-verify-ssl  # Maximum diversity: only 1 article per source
     python agent.py --max-per-source 3 --no-verify-ssl  # Allow up to 3 articles per source
+
+    # Control the number of articles and time window
+    python agent.py --days 3                # Look back for articles from the last 3 days (default: 7)
+    python agent.py --top-n 10              # Generate a post with the top 10 articles (default: 15)
     ```
 
 4.  **Find the output:**

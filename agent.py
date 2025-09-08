@@ -411,6 +411,208 @@ Here are the articles:
         logging.error(error_msg)
         return error_msg
 
+def ai_select_best_articles(articles, api_key, provider='gemini', model_name='gemini-2.5-flash', 
+                           target_count=8, language='English', verify_ssl=True, timeout=300):
+    """
+    Use AI to select the best articles from the filtered list.
+    AI will analyze articles and choose the most interesting/relevant ones.
+    """
+    if not articles:
+        return []
+    
+    if len(articles) <= target_count:
+        print(f"Only {len(articles)} articles available, returning all.")
+        return articles
+    
+    try:
+        # Prepare article summaries for AI analysis
+        articles_summary = []
+        for i, article in enumerate(articles):
+            title = getattr(article, 'title', 'No Title')
+            summary = getattr(article, 'summary', 'No summary available.')
+            link = getattr(article, 'link', '#')
+            
+            # Extract source domain
+            source_domain = ""
+            if hasattr(article, 'link') and article.link:
+                try:
+                    from urllib.parse import urlparse
+                    parsed_url = urlparse(article.link)
+                    source_domain = parsed_url.netloc
+                except:
+                    source_domain = "unknown"
+            
+            articles_summary.append({
+                'index': i,
+                'title': title,
+                'summary': summary,
+                'source': source_domain,
+                'link': link
+            })
+        
+        # Create prompt for AI article selection
+        selection_prompt = f"""
+You are a tech news curator. Your task is to select the {target_count} most interesting and relevant articles from the following list for a software development team's weekly digest. The articles should be in {language}.
+
+Consider these factors when selecting:
+1. Technical relevance and innovation
+2. Practical value for developers
+3. Current trends and important updates
+4. Diversity of topics and sources
+5. Overall interest and engagement potential
+
+Please analyze the following {len(articles)} articles and select exactly {target_count} of them by providing their indices in order of preference (most interesting first).
+
+Articles to choose from:
+"""
+        
+        for article in articles_summary:
+            selection_prompt += f"""
+{article['index']}. {article['title']}
+   Source: {article['source']}
+   Summary: {article['summary'][:200]}{'...' if len(article['summary']) > 200 else ''}
+"""
+        
+        selection_prompt += f"""
+
+Please respond with ONLY the indices of the {target_count} selected articles, separated by commas, in order of preference (most interesting first).
+Example: 0, 3, 7, 2, 5, 1, 4, 6
+
+Selected article indices:"""
+
+        print(f"AI is analyzing {len(articles)} articles to select the best {target_count}...")
+        
+        if provider == 'gemini':
+            return _ai_select_with_gemini(selection_prompt, api_key, model_name, articles, 
+                                        target_count, language, verify_ssl, timeout)
+        elif provider == 'openai':
+            return _ai_select_with_openai(selection_prompt, api_key, model_name, articles, 
+                                        target_count, language, timeout)
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+            
+    except Exception as e:
+        print(f"Error in AI article selection: {e}")
+        logging.error(f"AI article selection failed: {e}")
+        # Fallback: return first target_count articles
+        print(f"Falling back to first {target_count} articles.")
+        return articles[:target_count]
+
+def _ai_select_with_gemini(prompt, api_key, model_name, articles, target_count, language, verify_ssl, timeout):
+    """Use Gemini API for article selection"""
+    try:
+        if not verify_ssl:
+            os.environ['GOOGLE_API_USE_CLIENT_CERTIFICATE'] = 'false'
+            os.environ['CURL_CA_BUNDLE'] = ''
+            os.environ['REQUESTS_CA_BUNDLE'] = ''
+            os.environ['SSL_CERT_FILE'] = ''
+            logging.info("SSL verification for Gemini API disabled")
+            patch_genai_for_ssl_verification(verify=False)
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_name)
+        
+        # Use threading for timeout
+        import threading
+        import time
+        
+        result = {"response": None, "error": None, "completed": False}
+        
+        def generate_with_timeout():
+            try:
+                result["response"] = model.generate_content(prompt)
+                result["completed"] = True
+            except Exception as e:
+                result["error"] = e
+                result["completed"] = True
+        
+        generation_thread = threading.Thread(target=generate_with_timeout)
+        generation_thread.daemon = True
+        generation_thread.start()
+        
+        start_time = time.time()
+        while not result["completed"] and (time.time() - start_time) < timeout:
+            time.sleep(0.5)
+            
+        if result["completed"]:
+            if result["error"]:
+                raise result["error"]
+            
+            response_text = result["response"].text.strip()
+            print(f"AI selection response: {response_text}")
+            
+            # Parse the response to get article indices
+            selected_indices = _parse_ai_selection(response_text, len(articles), target_count)
+            selected_articles = [articles[i] for i in selected_indices if i < len(articles)]
+            
+            print(f"AI selected {len(selected_articles)} articles from indices: {selected_indices}")
+            return selected_articles
+        else:
+            raise Exception(f"AI selection timed out after {timeout} seconds")
+            
+    except Exception as e:
+        print(f"Gemini AI selection failed: {e}")
+        logging.error(f"Gemini AI selection error: {e}")
+        return articles[:target_count]
+
+def _ai_select_with_openai(prompt, api_key, model_name, articles, target_count, language, timeout):
+    """Use OpenAI API for article selection"""
+    try:
+        client = OpenAI(api_key=api_key)
+        
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a tech news curator. Respond with only the requested indices."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=timeout
+        )
+        
+        response_text = response.choices[0].message.content.strip()
+        print(f"AI selection response: {response_text}")
+        
+        # Parse the response to get article indices
+        selected_indices = _parse_ai_selection(response_text, len(articles), target_count)
+        selected_articles = [articles[i] for i in selected_indices if i < len(articles)]
+        
+        print(f"AI selected {len(selected_articles)} articles from indices: {selected_indices}")
+        return selected_articles
+        
+    except Exception as e:
+        print(f"OpenAI AI selection failed: {e}")
+        logging.error(f"OpenAI AI selection error: {e}")
+        return articles[:target_count]
+
+def _parse_ai_selection(response_text, max_index, target_count):
+    """Parse AI response to extract article indices"""
+    try:
+        # Extract numbers from the response
+        import re
+        numbers = re.findall(r'\d+', response_text)
+        
+        if not numbers:
+            raise ValueError("No numbers found in AI response")
+        
+        # Convert to integers and filter valid indices
+        indices = []
+        for num in numbers:
+            idx = int(num)
+            if 0 <= idx < max_index and idx not in indices:
+                indices.append(idx)
+                if len(indices) >= target_count:
+                    break
+        
+        if len(indices) < target_count:
+            print(f"Warning: AI only selected {len(indices)} articles, expected {target_count}")
+        
+        return indices[:target_count]
+        
+    except Exception as e:
+        print(f"Error parsing AI selection: {e}")
+        # Fallback: return first target_count indices
+        return list(range(min(target_count, max_index)))
+
 def save_post_as_md(post_content, filename="feed_post.md"):
     try:
         with open(filename, 'w', encoding='utf-8') as f:
@@ -437,6 +639,10 @@ if __name__ == "__main__":
                         help='The number of days to look back for recent articles (default: 7).')
     parser.add_argument('--top-n', type=int, default=15,
                         help='The total number of articles to include in the post (default: 15).')
+    parser.add_argument('--ai-select', action='store_true',
+                        help='Use AI to select the best articles from filtered list instead of using all filtered articles.')
+    parser.add_argument('--ai-select-count', type=int, default=8,
+                        help='Number of articles for AI to select (default: 8). Only used with --ai-select.')
     args = parser.parse_args()
     
     # Set up file logging if requested
@@ -520,6 +726,46 @@ if __name__ == "__main__":
         print("No articles to generate a post for.")
         sys.exit(0)
 
+    # AI Article Selection (if enabled)
+    final_articles = filtered_articles
+    if args.ai_select and len(filtered_articles) > args.ai_select_count:
+        print(f"\n--- AI Article Selection ---")
+        print(f"AI will select {args.ai_select_count} best articles from {len(filtered_articles)} filtered articles.")
+        
+        # Get API key for AI selection
+        if args.provider == 'gemini':
+            ai_api_key = args.gemini_api_key or os.getenv('GEMINI_KEY')
+            if not ai_api_key:
+                print("Error: No Gemini API key found for AI selection. Please provide it using --gemini-api-key or set GEMINI_KEY in .env file.")
+                sys.exit(1)
+        elif args.provider == 'openai':
+            ai_api_key = args.openai_api_key or os.getenv('OPENAI_KEY')
+            if not ai_api_key:
+                print("Error: No OpenAI API key found for AI selection. Please provide it using --openai-api-key or set OPENAI_KEY in .env file.")
+                sys.exit(1)
+        
+        try:
+            final_articles = ai_select_best_articles(
+                filtered_articles, 
+                ai_api_key, 
+                provider=args.provider,
+                model_name=args.model or ('gemini-2.5-flash' if args.provider == 'gemini' else 'gpt-4o-mini'),
+                target_count=args.ai_select_count,
+                language=args.language,
+                verify_ssl=verify_ssl,
+                timeout=args.timeout
+            )
+            
+            print(f"AI selected {len(final_articles)} articles for final post generation.")
+            print("--- End AI Article Selection ---\n")
+            
+        except Exception as e:
+            print(f"AI selection failed: {e}")
+            print("Falling back to using all filtered articles.")
+            final_articles = filtered_articles
+    elif args.ai_select:
+        print(f"Only {len(filtered_articles)} articles available, skipping AI selection.")
+
     generated_post = ""
     if args.provider == 'gemini':
         api_key = args.gemini_api_key or os.getenv('GEMINI_KEY')
@@ -533,16 +779,16 @@ if __name__ == "__main__":
         
         if args.use_fallback:
             generated_post = generate_post_fallback(
-                filtered_articles, api_key, model_name=model_name, language=args.language
+                final_articles, api_key, model_name=model_name, language=args.language
             )
         else:
             generated_post = generate_post_gemini(
-                filtered_articles, api_key, verify_ssl=verify_ssl, timeout=args.timeout, model_name=model_name, language=args.language
+                final_articles, api_key, verify_ssl=verify_ssl, timeout=args.timeout, model_name=model_name, language=args.language
             )
             if "Error:" in generated_post:
                 print("\nStandard API method failed. Trying fallback approach...")
                 generated_post = generate_post_fallback(
-                    filtered_articles, api_key, model_name=model_name, language=args.language
+                    final_articles, api_key, model_name=model_name, language=args.language
                 )
 
     elif args.provider == 'openai':
@@ -556,7 +802,7 @@ if __name__ == "__main__":
         print(f"Using model: {model_name}")
         
         generated_post = generate_post_openai(
-            filtered_articles, api_key, model_name=model_name, language=args.language, timeout=args.timeout
+            final_articles, api_key, model_name=model_name, language=args.language, timeout=args.timeout
         )
 
     print("\n--- Generated Post ---")

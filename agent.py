@@ -255,7 +255,20 @@ def generate_post_gemini(articles, api_key, verify_ssl=True, timeout=300, model_
 You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative and easy-to-read. Do not use complex words. The post should be in {language}. 
 Do not use exclamation marks in the text.
 
-Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
+Create a post with the following structure:
+
+1. Start with a fun, casual greeting to the team (1-2 sentences). Use different styles like:
+   - "Hey team, ready for your weekly dose of tech news. We have some exciting updates and important discussions from the world of AI this week."
+   - "Hello wonderful team, it is time for your weekly tech update. I have gathered some fascinating news from the world of software development and AI that I think you will enjoy."
+   - "Welcome back, tech enthusiasts! This week's roundup is packed with game-changing developments in AI and software engineering."
+   - "Hey there, team! Another week, another batch of mind-blowing tech news that's reshaping our industry."
+   - "Greetings, fellow developers! This week's tech landscape has been absolutely buzzing with innovation and breakthroughs."
+
+2. Then add a brief summary paragraph (3-4 sentences) that analyzes all the news and gives an overview of the week's highlights. This should be similar to: "This week was packed with major updates in the AI space. [Main trends and key developments]. [Notable company actions and partnerships]. [Overall impact on development and technology]. Let's dive into the highlights!"
+
+3. Then immediately start with the numbered list of articles. Do NOT add any additional introduction, title, or greeting after the summary.
+
+4. For each article below, present it as a numbered list item in the following format:
 1. emoji [Article Title](link) 
    3-sentence summary.
 
@@ -317,7 +330,20 @@ def generate_post_fallback(articles, api_key, model_name='gemini-2.5-flash', lan
 You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative and easy-to-read. Do not use complex words. The post should be in {language}. 
 Do not use exclamation marks in the text.
 
-Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
+Create a post with the following structure:
+
+1. Start with a fun, casual greeting to the team (1-2 sentences). Use different styles like:
+   - "Hey team, ready for your weekly dose of tech news. We have some exciting updates and important discussions from the world of AI this week."
+   - "Hello wonderful team, it is time for your weekly tech update. I have gathered some fascinating news from the world of software development and AI that I think you will enjoy."
+   - "Welcome back, tech enthusiasts! This week's roundup is packed with game-changing developments in AI and software engineering."
+   - "Hey there, team! Another week, another batch of mind-blowing tech news that's reshaping our industry."
+   - "Greetings, fellow developers! This week's tech landscape has been absolutely buzzing with innovation and breakthroughs."
+
+2. Then add a brief summary paragraph (3-4 sentences) that analyzes all the news and gives an overview of the week's highlights. This should be similar to: "This week was packed with major updates in the AI space. [Main trends and key developments]. [Notable company actions and partnerships]. [Overall impact on development and technology]. Let's dive into the highlights!"
+
+3. Then immediately start with the numbered list of articles. Do NOT add any additional introduction, title, or greeting after the summary.
+
+4. For each article below, present it as a numbered list item in the following format:
 1. emoji [Article Title](link) 
    3-sentence summary.
 
@@ -380,7 +406,20 @@ def generate_post_openai(articles, api_key, model_name='gpt-5-mini', language='E
 You are a friendly and enthusiastic tech assistant. Your task is to create a weekly news digest for our software development team. The tone should be informative and easy-to-read. Do not use complex words. The post should be in {language}. 
 Do not use exclamation marks in the text.
 
-Create a post with a fun, engaging title. For each article below, present it as a numbered list item in the following format:
+Create a post with the following structure:
+
+1. Start with a fun, casual greeting to the team (1-2 sentences). Use different styles like:
+   - "Hey team, ready for your weekly dose of tech news. We have some exciting updates and important discussions from the world of AI this week."
+   - "Hello wonderful team, it is time for your weekly tech update. I have gathered some fascinating news from the world of software development and AI that I think you will enjoy."
+   - "Welcome back, tech enthusiasts! This week's roundup is packed with game-changing developments in AI and software engineering."
+   - "Hey there, team! Another week, another batch of mind-blowing tech news that's reshaping our industry."
+   - "Greetings, fellow developers! This week's tech landscape has been absolutely buzzing with innovation and breakthroughs."
+
+2. Then add a brief summary paragraph (3-4 sentences) that analyzes all the news and gives an overview of the week's highlights. This should be similar to: "This week was packed with major updates in the AI space. [Main trends and key developments]. [Notable company actions and partnerships]. [Overall impact on development and technology]. Let's dive into the highlights!"
+
+3. Then immediately start with the numbered list of articles. Do NOT add any additional introduction, title, or greeting after the summary.
+
+4. For each article below, present it as a numbered list item in the following format:
 1. emoji [Article Title](link) 
    3-sentence summary.
 
@@ -637,7 +676,7 @@ if __name__ == "__main__":
                         help='Maximum articles per source (default: top_n // 3). Set to 1 for maximum diversity.')
     parser.add_argument('--days', type=int, default=7,
                         help='The number of days to look back for recent articles (default: 7).')
-    parser.add_argument('--top-n', type=int, default=15,
+    parser.add_argument('--top-n', type=int, default=30,
                         help='The total number of articles to include in the post (default: 15).')
     parser.add_argument('--ai-select', action='store_true',
                         help='Use AI to select the best articles from filtered list instead of using all filtered articles.')

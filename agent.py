@@ -451,7 +451,7 @@ Here are the articles:
         return error_msg
 
 def ai_select_best_articles(articles, api_key, provider='gemini', model_name='gemini-2.5-flash', 
-                           target_count=8, language='English', verify_ssl=True, timeout=300):
+                           target_count=8, language='English', verify_ssl=True, timeout=300, use_fallback=False):
     """
     Use AI to select the best articles from the filtered list.
     AI will analyze articles and choose the most interesting/relevant ones.
@@ -522,8 +522,12 @@ Selected article indices:"""
         print(f"AI is analyzing {len(articles)} articles to select the best {target_count}...")
         
         if provider == 'gemini':
-            return _ai_select_with_gemini(selection_prompt, api_key, model_name, articles, 
-                                        target_count, language, verify_ssl, timeout)
+            if use_fallback:
+                return _ai_select_with_gemini_fallback(selection_prompt, api_key, model_name, articles, 
+                                                    target_count, language, timeout)
+            else:
+                return _ai_select_with_gemini(selection_prompt, api_key, model_name, articles, 
+                                            target_count, language, verify_ssl, timeout)
         elif provider == 'openai':
             return _ai_select_with_openai(selection_prompt, api_key, model_name, articles, 
                                         target_count, language, timeout)
@@ -592,6 +596,62 @@ def _ai_select_with_gemini(prompt, api_key, model_name, articles, target_count, 
     except Exception as e:
         print(f"Gemini AI selection failed: {e}")
         logging.error(f"Gemini AI selection error: {e}")
+        return articles[:target_count]
+
+def _ai_select_with_gemini_fallback(prompt, api_key, model_name, articles, target_count, language, timeout):
+    """Fallback method for Gemini AI article selection using direct API calls"""
+    try:
+        print(f"Using fallback method for Gemini AI article selection...")
+        
+        # Direct API call using requests
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        
+        payload = {
+            "contents": [{"parts":[{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 2048,
+            }
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key
+        }
+        
+        # Make the request with SSL verification disabled
+        response = requests.post(
+            api_url, 
+            json=payload, 
+            headers=headers, 
+            verify=False,  # Disable SSL verification
+            timeout=timeout
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            # Extract the text from the response
+            response_text = result['candidates'][0]['content']['parts'][0]['text']
+            print(f"Fallback AI selection response: {response_text}")
+            
+            # Parse the response to get article indices
+            selected_indices = _parse_ai_selection(response_text, len(articles), target_count)
+            selected_articles = [articles[i] for i in selected_indices if i < len(articles)]
+            
+            print(f"Fallback AI selected {len(selected_articles)} articles from indices: {selected_indices}")
+            return selected_articles
+        else:
+            error_msg = f"Fallback AI selection API call failed with status code {response.status_code}: {response.text}"
+            logging.error(error_msg)
+            print(f"Fallback AI selection failed: {error_msg}")
+            return articles[:target_count]
+            
+    except Exception as e:
+        error_msg = f"Error in fallback AI selection: {e}"
+        logging.error(error_msg)
+        print(f"Fallback AI selection failed: {error_msg}")
         return articles[:target_count]
 
 def _ai_select_with_openai(prompt, api_key, model_name, articles, target_count, language, timeout):
@@ -669,7 +729,7 @@ if __name__ == "__main__":
     parser.add_argument('--log-file', type=str, help='Path to a log file to record detailed errors and info.')
     parser.add_argument('--timeout', type=int, default=300, help='Timeout in seconds for API calls (default: 300)')
     parser.add_argument('--model', type=str, help='The model to use for the selected provider.')
-    parser.add_argument('--use-fallback', action='store_true', help='Use fallback direct API approach for Gemini instead of the standard library.')
+    parser.add_argument('--use-fallback', action='store_true', help='Use fallback direct API approach for Gemini instead of the standard library (applies to both post generation and AI article selection).')
     parser.add_argument('--language', type=str, default='English',
                         help='Language for the generated content (default: English). Examples: Russian, German, French, Spanish, etc.')
     parser.add_argument('--max-per-source', type=int, default=None,
@@ -792,7 +852,8 @@ if __name__ == "__main__":
                 target_count=args.ai_select_count,
                 language=args.language,
                 verify_ssl=verify_ssl,
-                timeout=args.timeout
+                timeout=args.timeout,
+                use_fallback=args.use_fallback
             )
             
             print(f"AI selected {len(final_articles)} articles for final post generation.")
